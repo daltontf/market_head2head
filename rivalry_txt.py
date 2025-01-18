@@ -4,7 +4,7 @@ import itertools
 team_clauses = {
     "ATL": (["Atlanta"],[]),
     "AUS": (["Austin"],[]),
-    "ANA": (["Anaheim"],[]),
+    "ANA": (["Anaheim", "Los Angeles Angels", "California Angels"],[]),
     "BAL": (["Baltimore"],[]),
     "BIR": (["Birmingham"],[]),
     "BOS": (["Boston", "New England"],[]),
@@ -16,7 +16,7 @@ team_clauses = {
 #    "CAR": (["Carolina"],[]),  #More of designation than market since it is Raleigh and Charlotte
     "CLE": (["Cleveland", "Lake Erie"],[]),
     "CLT": (["Charlotte", "Carolina Panthers"],[]),
-    "DAL": (["Dallas","Arlington"],[]),
+    "DAL": (["Dallas","Arlington", "Texas Rangers"],[]),
     "DEN": (["Denver", "Colorado"],[]),
     "DET": (["Detroit", "Michigan"],[]),
     "EDM": (["Edmonton"],[]),
@@ -34,7 +34,7 @@ team_clauses = {
     "MON": (["Montreal"],[]),
     "NO" : (["New Orleans"],[]),
     "NSH": (["Nashville", "Tennessee"],[]),
-    "NY" : (["New York", "Gotham"],[]),
+    "NY" : (["New York", "Gotham"],["Rochester"]),
     "NJ" : (["New Jersey"],[]),
     "OAK": (["Oakland", "California Golden"],[]),
     "OKC": (["Oklahoma City"],[]),
@@ -76,6 +76,14 @@ for team1, team1_clause in team_clauses.items():
 
     team1_home_clauses = " or ".join(list(map(lambda x: f"title like '%{x[1]}%at%{x[0]}%'" , clauses)))
     team2_home_clauses = " or ".join(list(map(lambda x: f"title like '%{x[0]}%at%{x[1]}%'" , clauses)))
+
+    if team1_clause[1]:
+        team1_home_clauses = "(" + team1_home_clauses + ") and (" + " or ".join(list(map(lambda x: f"title not like '%at%{x}%'" , team1_clause[1]))) + ")"
+        team2_home_clauses = "(" + team2_home_clauses + ") and (" + " or ".join(list(map(lambda x: f"title not like '%{x}%at%'" , team1_clause[1]))) + ")"
+
+    if team2_clause[1]:
+        team2_home_clauses = "(" + team2_home_clauses + ") and (" + " or ".join(list(map(lambda x: f"title not like '%at%{x}%'" , team2_clause[1]))) + ")"
+        team1_home_clauses = "(" + team1_home_clauses + ") and (" + " or ".join(list(map(lambda x: f"title not like '%{x}%at%'" , team2_clause[1]))) + ")"
 
     print(f"""
 .mode {mode}
