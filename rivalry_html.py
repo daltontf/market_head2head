@@ -68,11 +68,11 @@ extra_clause = " and league not like '%NCAA%'"
 
 for line in """<html><head>
 <style>
-select {
+select, button {
     font-size: 32;
 }
 body {
-    background: #000
+    background-color: #000;
     color: #DDD
 }
 caption {
@@ -164,7 +164,7 @@ function init() {
    market2.selectedIndex = -1
    if (window.location.hash) {
     target = window.location.hash.substring(1)    
-    document.getElementById(target).style.display = "block" 
+    document.getElementById(target).style.display = \\"block\\" 
     markets = target.split("v")   
     market1.value = markets[0];
     market2.value = markets[1];
