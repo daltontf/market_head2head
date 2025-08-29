@@ -51,25 +51,14 @@ leagues = [
   ("concacaf.champions_cup", 2007),
   ("concacaf.champions", 2008),
   ("concacaf.w.champions_cup", 2024),
+  ("fifa.cwc", 2025),
 ]
 
 def gatherAttendance(path, query, date, first_year):
   if str(first_year) > date[0:4]:
     #print(f'{path} not yet {first_year}')
     return 
-  cur = db.cursor()
-
-  cur.execute("SELECT COMPLETE FROM fetches.FETCHES WHERE PATH = ?", [path])
-
-  query_result = cur.fetchall()
-  if not query_result:
-    cur.execute(f'INSERT INTO fetches.FETCHES (PATH, COMPLETE) VALUES (?, false)', [path])
-    db.commit()      
-  else:
-    if query_result[0][0]: 
-      print(path + " already fetched")
-      return 
-
+  
   response = requests.get("http://site.api.espn.com/" + path + "&" + query)
 
   data = response.json()
@@ -82,7 +71,25 @@ def gatherAttendance(path, query, date, first_year):
     return 
 
   events = data['events']
+  print(f'{league} {len(events)}')
  
+  if len(events) == 0:
+    return
+
+  cur = db.cursor()
+
+  cur.execute("SELECT COMPLETE FROM fetches.FETCHES WHERE PATH = ?", [path])
+
+  query_result = cur.fetchall()
+  if not query_result:
+    cur.execute(f'INSERT INTO fetches.FETCHES (PATH, COMPLETE) VALUES (?, false)', [path])
+    db.commit() 
+  else:
+    if query_result[0][0]: 
+      print(path + " already fetched")
+      return 
+
+
   # cycle through all the games in the week 
   for event in events:
     # create a dict (game) with each game as a shortcut 
@@ -91,14 +98,20 @@ def gatherAttendance(path, query, date, first_year):
       date = event['date']
       game = event['competitions'][0]
       name = event['name']
-      attendance = game['attendance']
+
+      attendance = None
+      try:
+        attendance = game['attendance']
+      except KeyError as ex:
+        print(path)
+        print(ex)   
     
       venue = None
       try:  
         venue = game['venue']['fullName']
       except KeyError as ex:
         print(path)
-        print(ex) 
+        print(ex)        
 
       if game['competitors'][0]['homeAway'] == "home":
         home_score = game['competitors'][0]['score']
@@ -110,7 +123,7 @@ def gatherAttendance(path, query, date, first_year):
       insert = cur.execute(
         f'INSERT INTO COMPETITIONS (COMPETITION_DATE, LEAGUE, TITLE, ATTENDANCE, VENUE, AWAY_SCORE, HOME_SCORE) VALUES (?,?,?,?,?,?,?)',
           [date, league, name, attendance, venue, away_score, home_score]
-      )
+      )   
 
     except KeyError as ex:
       print(path)
@@ -127,8 +140,8 @@ db = sqlite3.connect('competitions.db')
 # Read and execute the SQL query in ./sql/articles.sql
 f = open("./sql/schema.sql")
 db.cursor().executescript(f.read())
-day = datetime.datetime(2025, 1, 1)
-before_date = "20250101"
+day = datetime.datetime(2025, 8, 9)
+before_date = "20250810"
 
 while 1:
   date = day.strftime("%Y%m%d")
@@ -140,22 +153,26 @@ while 1:
   for (league, first_year) in leagues:
     gatherAttendance(f'apis/site/v2/sports/soccer/{league}/scoreboard?dates={date}','limit=1000', date, first_year)
   
-  # TODO fix NCAA D1 have multiple days during bowl season
-  #gatherAttendance(f'apis/site/v2/sports/football/college-football/scoreboard?dates={date}&groups=80','limit=1000', date, 1873) # 1873! 
-  #gatherAttendance(f'apis/site/v2/sports/football/college-football/scoreboard?dates={date}&groups=81','limit=1000') # FCS
-  #gatherAttendance(f'apis/site/v2/sports/football/college-football/scoreboard?dates={date}&groups=35','limit=1000') # Div II/III
+  # # TODO fix NCAA D1 have multiple days during bowl season
+  # #gatherAttendance(f'apis/site/v2/sports/football/college-football/scoreboard?dates={date}&groups=80','limit=1000', date, 1873) # 1873! 
+  # #gatherAttendance(f'apis/site/v2/sports/football/college-football/scoreboard?dates={date}&groups=81','limit=1000') # FCS
+  # #gatherAttendance(f'apis/site/v2/sports/football/college-football/scoreboard?dates={date}&groups=35','limit=1000') # Div II/III
 
   gatherAttendance(f'apis/site/v2/sports/football/nfl/scoreboard?dates={date}','limit=1000', date, 1933) #1933
   gatherAttendance(f'apis/site/v2/sports/football/cfl/scoreboard?dates={date}','limit=1000', date,  2021) # 2021
   gatherAttendance(f'apis/site/v2/sports/football/ufl/scoreboard?dates={date}','limit=1000', date,  2024) # 2024+
-  gatherAttendance(f'apis/site/v2/sports/football/xfl/scoreboard?dates={date}','limit=1000', date,  2020) # 2020, 2023
+  #gatherAttendance(f'apis/site/v2/sports/football/xfl/scoreboard?dates={date}','limit=1000', date,  2020) # 2020, 2023
   gatherAttendance(f'apis/site/v2/sports/baseball/mlb/scoreboard?dates={date}','limit=1000', date,  1876) #1876
   gatherAttendance(f'apis/site/v2/sports/hockey/nhl/scoreboard?dates={date}','limit=1000', date,  1993) #1993
   gatherAttendance(f'apis/site/v2/sports/basketball/nba/scoreboard?dates={date}','limit=1000', date,  1947) #1947
   gatherAttendance(f'apis/site/v2/sports/basketball/wnba/scoreboard?dates={date}','limit=1000', date,  1997) #1997
 
-  gatherAttendance(f'apis/site/v2/sports/basketball/mens-college-basketball/scoreboard?dates={date}&groups=50','limit=1000', date, 2001) #2001
-  gatherAttendance(f'apis/site/v2/sports/basketball/womens-college-basketball/scoreboard?dates={date}&groups=50','limit=1000', date, 2001) #2001
-  gatherAttendance(f'apis/site/v2/sports/volleyball/womens-college-volleyball/scoreboard?dates={date}','limit=1000', date, 2011) #2011
+  # # gatherAttendance(f'apis/site/v2/sports/basketball/mens-college-basketball/scoreboard?dates={date}&groups=50','limit=1000', date, 2001) #2001
+  # # gatherAttendance(f'apis/site/v2/sports/basketball/womens-college-basketball/scoreboard?dates={date}&groups=50','limit=1000', date, 2001) #2001
+  # # gatherAttendance(f'apis/site/v2/sports/volleyball/womens-college-volleyball/scoreboard?dates={date}','limit=1000', date, 2011) #2011
+
+  gatherAttendance(f'apis/site/v2/sports/rugby/289262/scoreboard?dates={date}','limit=1000', date, 2019)
+  gatherAttendance(f'apis/site/v2/sports/lacrosse/pll/scoreboard?dates={date}','limit=1000', date, 2022)
+  gatherAttendance(f'apis/site/v2/sports/lacrosse/nll/scoreboard?dates={date}','limit=1000', date, 2025)
 
   day = day + datetime.timedelta(days=1)
